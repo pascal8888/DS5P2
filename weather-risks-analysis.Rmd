@@ -1,24 +1,58 @@
 ---
-title: "Severe Weather - Risks Analysis"
-author: "James Schacht"
-date: July, 2015
+title: "Severe Weather - Health and Property Impacts Analysis"
+author: "Analyst: James Schacht"
+date: "Report Compiled: July, 2015"
 output: 
     html_document: 
         keep_md: true
 ---
+##Synopsis
+###Background
+<p>
+This report uses data from the <a href=https://www.ncdc.noaa.gov/" target="_blank">National Oceanic and Atmospheric Administration's (NOAA)</a> National Climatic Data Center database to provide a descriptive analysis of event types causing human harm and economic impact to property. 
+</p>
+<p>
+Although the data spans from 1950, the year it was first captured, through now, agency directive "10-1605", introduced January 1996, provides a consistent data set with modern context. More information about the data collection and processing evolution can be found <a href="https://www.ncdc.noaa.gov/stormevents/details.jsp" target="_blank">here</a>.  This report uses a subset of the data beginning in 1996.
+</p>
+<p>
+<a href="https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf" target="_blank">Source Data FAQ</a>
+</p>
+###What the Data Shows
+...
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+##Data Processing
+###R Packages Used: dplyr, lubridate
+```{r}
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(lubridate))
+``` 
+
+```{r cache=TRUE}
+if (!exists("NOAAdata.csv.bz2")){
+    download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "NOAAdata.csv.bz2", mode="wb")
+}
+if (!exists("stormdata")) {
+    stormdata <- read.csv("NOAAdata.csv.bz2")
+}
+stormdata$EVTYPE <- gsub("^\\s+|\\s+$", "", stormdata$EVTYPE)
+stormdata <- mutate(stormdata, BGN_DATE = mdy_hms(BGN_DATE))
+indx <- which(stormdata$BGN_DATE >= "1996-01-01")
+stormdata <- stormdata[indx,]
+cols_people <- c(8,23:24)
+cols_property <- c(8,25:28)
+df_people <- select(stormdata,cols_people)
+df_property <- select(stormdata,cols_property)
+df_property$PROPDMGEXP <- tolower(df_property$PROPDMGEXP)
+df_property$CROPDMGEXP <- tolower(df_property$CROPDMGEXP)
+df_people_fatalities <- group_by(df_people, EVTYPE) %>% summarize(sum(FATALITIES))
+df_people_injuries <- group_by(df_people, EVTYPE) %>% summarize(sum(INJURIES))
+max_injINDX <- which(df_people_injuries[,2]==max(df_people_injuries[,2]))
+max_fatINDX <- which(df_people_fatalities[,2]==max(df_people_fatalities[,2]))
+```
+
+##Results
 
 ```{r}
-summary(cars)
+#rm(list=ls())
 ```
-
-You can also embed plots, for example:
-
-```{r, echo=FALSE}
-plot(cars)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

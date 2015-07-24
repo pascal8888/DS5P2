@@ -104,7 +104,8 @@ Iplot <-
         binwidth=20,
         main="Injury Events",
         ylab="Number of Injury Events",
-        xlab="Event Type") +
+        xlab="Event Type",
+        size=6) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 Cplot <- 
     qplot(factor(EVTYPE,levels=unique(EVTYPE)),
@@ -114,22 +115,25 @@ Cplot <-
         binwidth=20,
         main="Combined Health-Impact Events",
         ylab="Number of Combined Events",
-        xlab="Event Type") +
+        xlab="Event Type",
+        size=6) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-p_vp <- viewport(h=1.8)
+```
+
+```r
+#p_vp <- viewport(h=1.2,w=1.2)
 grid.arrange(tbl_fatalities,
              Fplot,
              tbl_injuries,
              Iplot,
              tbl_combined,
              Cplot,
-             top="Top 10 Weather Events With Impact to Health 1996 - 2011",
-             vp = p_vp,
+             top = textGrob("Top 10 Weather Events With Impact to Health 1996 - 2011",gp=gpar(fontsize=20,font=3)),
              ncol = 2,
              nrow = 3)
 ```
 
-![](weather-risks-analysis_files/figure-html/unnamed-chunk-2-1.png) 
+![](weather-risks-analysis_files/figure-html/unnamed-chunk-3-1.png) 
 
 ##Results
 

@@ -12,7 +12,7 @@ output:
 This report uses data from the <a href=https://www.ncdc.noaa.gov/" target="_blank">National Oceanic and Atmospheric Administration's (NOAA)</a> National Climatic Data Center database to provide a descriptive analysis of event types causing human harm and economic impact to property. 
 </p>
 <p>
-Although the data source spans from 1950, the year it was first captured, through 2011-11-30, agency directive "10-1605", introduced January 1996, provides a consistent data set with modern context. More information about the data collection and processing evolution can be found <a href="https://www.ncdc.noaa.gov/stormevents/details.jsp" target="_blank">here</a>.  This report uses a subset of the data beginning 1996-01-01 through 2011-11-30.
+Although the data source spans from 1950, the year it was first captured, through 2011-11-30, agency directive "10-1605", introduced January 1996, provides a consistent data set with modern context. More information about the data collection and processing evolution can be found <a href="https://www.ncdc.noaa.gov/stormevents/details.jsp" target="_blank">here</a>.  This report uses a subset of the data beginning 1996-01-01 through 2011-11-30 (snapshot date).
 </p>
 <p>
 <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf" target="_blank">Source Data FAQ</a>
@@ -22,7 +22,7 @@ Although the data source spans from 1950, the year it was first captured, throug
 
 
 ##Data Processing
-###R Packages Used: dplyr, lubridate, ggplot2, grid, & gridExtra
+####Load needed R packages
 ```{r}
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(lubridate))
@@ -30,20 +30,20 @@ suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(grid))
 suppressPackageStartupMessages(library(gridExtra))
 ``` 
-
+####Download data and load it into a data frame
 ```{r}
 download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "NOAAdata.csv.bz2", mode="wb")
 stormdata <- read.csv("NOAAdata.csv.bz2")
+```
+####Clean up the data. Remove leading and trailing white space in EVTYPE variable; normalize the DATE variable; subset the data frame to exclude data from before 1996; create new data frames for plotting subsetted on only the variables needed for each one.
+```{r}
 stormdata$EVTYPE <- gsub("^\\s+|\\s+$", "", stormdata$EVTYPE)
 stormdata <- mutate(stormdata, BGN_DATE = mdy_hms(BGN_DATE))
 indx <- which(stormdata$BGN_DATE >= "1996-01-01")
 stormdata <- stormdata[indx,]
+#Impacts to people
 cols_people <- c(8,23:24)
-cols_property <- c(8,25:28)
 df_people <- select(stormdata,cols_people)
-df_property <- select(stormdata,cols_property)
-df_property$PROPDMGEXP <- tolower(df_property$PROPDMGEXP)
-df_property$CROPDMGEXP <- tolower(df_property$CROPDMGEXP)
 df_people_fatalities <- group_by(df_people, EVTYPE) %>% summarize(sum(FATALITIES))
 df_people_injuries <- group_by(df_people, EVTYPE) %>% summarize(sum(INJURIES))
 names(df_people_fatalities) <- c("EVTYPE","FATALITIES")
@@ -54,9 +54,22 @@ df_people_combined <- full_join(df_people_fatalities,df_people_injuries)
 df_people_combined <- mutate(df_people_combined,TOTAL = FATALITIES + INJURIES)
 df_people_combined <- select(df_people_combined,EVTYPE,TOTAL)
 df_people_combined <- arrange(df_people_combined,desc(TOTAL))
+#Impacts to property
+cols_property <- c(8,25:28)
+df_property <- select(stormdata,cols_property)
+df_property$PROPDMGEXP <- tolower(df_property$PROPDMGEXP)
+df_property$CROPDMGEXP <- tolower(df_property$CROPDMGEXP)
+unique(df_property$PROPDMGEXP) #determine how to scale the numbers in the PROPDMG variable. k = x1000 | m = x1000000 | b = x1000000000 | 0 = x1 | empty string = NA
+unique(df_property$CROPDMGEXP) #determine how to scale the numbers in the CROPDMG variable. k = x1000 | m = x1000000 | b = x1000000000 | empty string = NA
+```
+####Create table graphic objects for plotting
+```{r}
 tbl_fatalities <- tableGrob(head(df_people_fatalities, n = 10))
 tbl_injuries <- tableGrob(head(df_people_injuries, n = 10))
 tbl_combined <- tableGrob(head(df_people_combined, n = 10))
+```
+####Create the plots for people impacts
+```{r}
 Fplot <- 
     qplot(factor(EVTYPE,levels=unique(EVTYPE)),
         data=head(df_people_fatalities, n =10), 
@@ -88,8 +101,9 @@ Cplot <-
         xlab="Event Type") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+##Results
+####Arrange all three tables and all three plots relating to people impacts to display in <strong>one</strong> figure
 ```{r fig.height = 20, fig.width = 15}
-#p_vp <- viewport(h=1.2,w=1.2)
 grid.arrange(tbl_fatalities,
              Fplot,
              tbl_injuries,
@@ -100,9 +114,6 @@ grid.arrange(tbl_fatalities,
              ncol = 2,
              nrow = 3)
 ```
-
-##Results
-
 ```{r}
 #rm(list=ls())
 ```

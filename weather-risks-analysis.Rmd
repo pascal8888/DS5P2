@@ -13,7 +13,7 @@ This report uses data from the <a href=https://www.ncdc.noaa.gov/" target="_blan
 </p>
 <p>
 Although the data source spans from 1950, the year it was first captured, through 2011-11-30, agency directive "10-1605", introduced January 1996, provides a consistent data set with modern context. More information about the data collection and processing evolution can be found <a href="https://www.ncdc.noaa.gov/stormevents/details.jsp" target="_blank">here</a>.  This report uses a subset of the data beginning 1996-01-01 through 2011-11-30.
-</p> <-
+</p>
 <p>
 <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf" target="_blank">Source Data FAQ</a>
 </p>
@@ -22,20 +22,18 @@ Although the data source spans from 1950, the year it was first captured, throug
 
 
 ##Data Processing
-###R Packages Used: dplyr, lubridate
+###R Packages Used: dplyr, lubridate, gridExtra, ggplot2
 ```{r}
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(lubridate))
 suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(grid))
+suppressPackageStartupMessages(library(gridExtra))
 ``` 
 
-```{r cache=TRUE}
-if (!exists("NOAAdata.csv.bz2")){
-    download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "NOAAdata.csv.bz2", mode="wb")
-}
-if (!exists("stormdata")) {
-    stormdata <- read.csv("NOAAdata.csv.bz2")
-}
+```{r}
+download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", "NOAAdata.csv.bz2", mode="wb")
+stormdata <- read.csv("NOAAdata.csv.bz2")
 stormdata$EVTYPE <- gsub("^\\s+|\\s+$", "", stormdata$EVTYPE)
 stormdata <- mutate(stormdata, BGN_DATE = mdy_hms(BGN_DATE))
 indx <- which(stormdata$BGN_DATE >= "1996-01-01")
@@ -52,10 +50,54 @@ names(df_people_fatalities) <- c("EVTYPE","FATALITIES")
 names(df_people_injuries) <- c("EVTYPE","INJURIES")
 df_people_fatalities <- arrange(df_people_fatalities,desc(FATALITIES))
 df_people_injuries <- arrange(df_people_injuries,desc(INJURIES))
-max_injINDX <- which(df_people_injuries[,2]==max(df_people_injuries[,2]))
-max_fatINDX <- which(df_people_fatalities[,2]==max(df_people_fatalities[,2]))
-tmp <- qplot(df_people_fatalities$FATALITIES[1:10],df_people_fatalities$EVTYPE[1:10],xlab="Number Fatalities",ylab="Event Type",main="Top 10 Fatal Weather Events 1996/01/01 - 2011/11/30",color="red", size=10)
-tmp + theme(legend.position="none")
+df_people_combined <- full_join(df_people_fatalities,df_people_injuries)
+df_people_combined <- mutate(df_people_combined,TOTAL = FATALITIES + INJURIES)
+df_people_combined <- select(df_people_combined,EVTYPE,TOTAL)
+df_people_combined <- arrange(df_people_combined,desc(TOTAL))
+tbl_fatalities <- tableGrob(head(df_people_fatalities, n = 10))
+tbl_injuries <- tableGrob(head(df_people_injuries, n = 10))
+tbl_combined <- tableGrob(head(df_people_combined, n = 10))
+Fplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_people_fatalities, n =10), 
+        weight=FATALITIES, 
+        geom="bar", 
+        binwidth=20,
+        main="Fatal Events",
+        ylab="Number of Fatalities",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+Iplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_people_injuries, n =10), 
+        weight=INJURIES, 
+        geom="bar", 
+        binwidth=20,
+        main="Injury Events",
+        ylab="Number of Injury Events",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+Cplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_people_combined, n =10), 
+        weight=TOTAL, 
+        geom="bar", 
+        binwidth=20,
+        main="Combined Health-Impact Events",
+        ylab="Number of Combined Events",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+p_vp <- viewport(h=1.8)
+grid.arrange(tbl_fatalities,
+             Fplot,
+             tbl_injuries,
+             Iplot,
+             tbl_combined,
+             Cplot,
+             top="Top 10 Weather Events With Impact to Health 1996 - 2011",
+             vp = p_vp,
+             ncol = 2,
+             nrow = 3)
 ```
 
 ##Results

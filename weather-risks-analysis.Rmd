@@ -172,6 +172,7 @@ grid.arrange(tbl_fatalities,
              ncol = 2,
              nrow = 3)
 ```
+
 ####Arrange all three tables and all three plots relating to property/crop impacts to display in <strong>one</strong> figure
 ```{r fig.height = 20, fig.width = 15}
 grid.arrange(tbl_prop,

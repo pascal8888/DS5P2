@@ -90,21 +90,36 @@ df_people_combined <- arrange(df_people_combined,desc(TOTAL))
 #Impacts to property
 cols_property <- c(8,25:28)
 df_property <- select(stormdata,cols_property)
-df_property$PROPDMGEXP <- tolower(df_property$PROPDMGEXP)
-df_property$CROPDMGEXP <- tolower(df_property$CROPDMGEXP)
-unique(df_property$PROPDMGEXP) #ensure there are no anomolies on the multipliers to scale the numbers in the PROPDMG variable. k = x1000 | empty string = NA | m = x1000000 | b = x1000000000 | 0 = x1
+df_property$p_mply <- NA
+df_property$p_mply[df_property$PROPDMGEXP == "K"] <- 1000
+df_property$p_mply[df_property$PROPDMGEXP == "M"] <- 1000000
+df_property$p_mply[df_property$PROPDMGEXP == "B"] <- 1000000000
+df_property$p_mply[df_property$PROPDMGEXP == "0"] <- 1
+df_property <- mutate(df_property,df_property$PROPDMG * df_property$p_mply)
+df_property$c_mply <- NA
+df_property$c_mply[df_property$CROPDMGEXP == "K"] <- 1000
+df_property$c_mply[df_property$CROPDMGEXP == "M"] <- 1000000
+df_property$c_mply[df_property$CROPDMGEXP == "B"] <- 1000000000
+df_property$c_mply[df_property$CROPDMGEXP == "0"] <- 1
+df_property <- mutate(df_property,df_property$CROPDMG * df_property$c_mply)
+names(df_property) <- c("EVTYPE","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP","p_mply","PD","c_mply","CD")
+df_property_prop <- group_by(df_property, EVTYPE) %>% summarize(sum(PD,na.rm=T))
+df_property_crop <- group_by(df_property, EVTYPE) %>% summarize(sum(CD,na.rm=T))
+names(df_property_prop) <- c("EVTYPE","PD")
+names(df_property_crop) <- c("EVTYPE","CD")
+df_property_prop <- arrange(df_property_prop,desc(PD))
+df_property_crop <- arrange(df_property_crop,desc(CD))
+df_property_combined <- full_join(df_property_prop,df_property_crop)
 ```
 
 ```
-## [1] "k" ""  "m" "b" "0"
+## Joining by: "EVTYPE"
 ```
 
 ```r
-unique(df_property$CROPDMGEXP) #ensure there are no anomolies on the multipliers to scale the numbers in the CROPDMG variable. k = x1000 | empty string = NA | m = x1000000 | b = x1000000000 
-```
-
-```
-## [1] "k" ""  "m" "b"
+df_property_combined <- mutate(df_property_combined,TOTAL = PD + CD)
+df_property_combined <- select(df_property_combined,EVTYPE,TOTAL)
+df_property_combined <- arrange(df_property_combined,desc(TOTAL))
 ```
 ####Create table graphic objects for display with plots
 
@@ -112,6 +127,9 @@ unique(df_property$CROPDMGEXP) #ensure there are no anomolies on the multipliers
 tbl_fatalities <- tableGrob(head(df_people_fatalities, n = 10))
 tbl_injuries <- tableGrob(head(df_people_injuries, n = 10))
 tbl_combined <- tableGrob(head(df_people_combined, n = 10))
+tbl_prop <- tableGrob(head(df_property_prop, n = 10))
+tbl_crop <- tableGrob(head(df_property_crop, n = 10))
+tbl_prop_combined <- tableGrob(head(df_property_combined, n = 10))
 ```
 ####Create the plots for people impacts
 
@@ -147,6 +165,40 @@ Cplot <-
         xlab="Event Type") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+####Create the plots for the property/crop impacts
+
+```r
+Pplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_property_prop, n =10), 
+        weight=PD, 
+        geom="bar", 
+        binwidth=20,
+        main="Property Damage",
+        ylab="Dollars of Property Damage",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+CPplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_property_crop, n =10), 
+        weight=CD, 
+        geom="bar", 
+        binwidth=20,
+        main="Crop Damage",
+        ylab="Dollars of Crop Damage",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+PCplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_property_combined, n =10), 
+        weight=TOTAL, 
+        geom="bar", 
+        binwidth=20,
+        main="Total Property & Crop Damage",
+        ylab="Dollars of Property & Crop Damage",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 ##Results
 ####Arrange all three tables and all three plots relating to people impacts to display in <strong>one</strong> figure
 
@@ -162,4 +214,19 @@ grid.arrange(tbl_fatalities,
              nrow = 3)
 ```
 
-![](weather-risks-analysis_files/figure-html/unnamed-chunk-6-1.png) 
+![](weather-risks-analysis_files/figure-html/unnamed-chunk-7-1.png) 
+####Arrange all three tables and all three plots relating to property/crop impacts to display in <strong>one</strong> figure
+
+```r
+grid.arrange(tbl_prop,
+             Pplot,
+             tbl_crop,
+             CPplot,
+             tbl_prop_combined,
+             PCplot,
+             top = textGrob("Top 10 Weather Events With Impact to Property & Crop Damage 1996 - 2011",gp=gpar(fontsize=20,font=3)),
+             ncol = 2,
+             nrow = 3)
+```
+
+![](weather-risks-analysis_files/figure-html/unnamed-chunk-8-1.png) 

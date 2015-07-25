@@ -60,16 +60,29 @@ df_people_combined <- arrange(df_people_combined,desc(TOTAL))
 #Impacts to property
 cols_property <- c(8,25:28)
 df_property <- select(stormdata,cols_property)
-unique(df_property$PROPDMGEXP) #ensure there are no anomolies on the multipliers to scale the numbers in the PROPDMG variable. k = x1000 | empty string = NA | m = x1000000 | b = x1000000000 | 0 = x1
-unique(df_property$CROPDMGEXP) #ensure there are no anomolies on the multipliers to scale the numbers in the CROPDMG variable. k = x1000 | empty string = NA | m = x1000000 | b = x1000000000 
-value <- c(1000000,1000,1000000000,1)
-key <- c("M","K","B","0")
-dmg_mplyr <- list()
-dmg_mplyr <- setNames(as.list(value), key)
-df_property_prop <- group_by(df_property, EVTYPE) %>% summarize(sum(PROPDMG))
-df_property_crop <- group_by(df_property, EVTYPE) %>% summarize(sum(CROPDMG))
-names(df_property_prop) <- c("EVTYPE","PROPDMG")
-names(df_property_crop) <- c("EVTYPE","CROPDMG")
+df_property$p_mply <- NA
+df_property$p_mply[df_property$PROPDMGEXP == "K"] <- 1000
+df_property$p_mply[df_property$PROPDMGEXP == "M"] <- 1000000
+df_property$p_mply[df_property$PROPDMGEXP == "B"] <- 1000000000
+df_property$p_mply[df_property$PROPDMGEXP == "0"] <- 1
+df_property <- mutate(df_property,df_property$PROPDMG * df_property$p_mply)
+df_property$c_mply <- NA
+df_property$c_mply[df_property$CROPDMGEXP == "K"] <- 1000
+df_property$c_mply[df_property$CROPDMGEXP == "M"] <- 1000000
+df_property$c_mply[df_property$CROPDMGEXP == "B"] <- 1000000000
+df_property$c_mply[df_property$CROPDMGEXP == "0"] <- 1
+df_property <- mutate(df_property,df_property$CROPDMG * df_property$c_mply)
+names(df_property) <- c("EVTYPE","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP","p_mply","PD","c_mply","CD")
+df_property_prop <- group_by(df_property, EVTYPE) %>% summarize(sum(PD))
+df_property_crop <- group_by(df_property, EVTYPE) %>% summarize(sum(CD))
+names(df_property_prop) <- c("EVTYPE","PD")
+names(df_property_crop) <- c("EVTYPE","CD")
+df_property_prop <- arrange(df_property_prop,desc(PD))
+df_property_crop <- arrange(df_property_crop,desc(CD))
+df_property_combined <- full_join(df_property_prop,df_property_crop)
+df_property_combined <- mutate(df_property_combined,TOTAL = PD + CD)
+df_property_combined <- select(df_property_combined,EVTYPE,TOTAL)
+df_property_combined <- arrange(df_property_combined,desc(TOTAL))
 ```
 ####Create table graphic objects for display with plots
 ```{r}

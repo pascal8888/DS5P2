@@ -73,8 +73,8 @@ df_property$c_mply[df_property$CROPDMGEXP == "B"] <- 1000000000
 df_property$c_mply[df_property$CROPDMGEXP == "0"] <- 1
 df_property <- mutate(df_property,df_property$CROPDMG * df_property$c_mply)
 names(df_property) <- c("EVTYPE","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP","p_mply","PD","c_mply","CD")
-df_property_prop <- group_by(df_property, EVTYPE) %>% summarize(sum(PD))
-df_property_crop <- group_by(df_property, EVTYPE) %>% summarize(sum(CD))
+df_property_prop <- group_by(df_property, EVTYPE) %>% summarize(sum(PD,na.rm=T))
+df_property_crop <- group_by(df_property, EVTYPE) %>% summarize(sum(CD,na.rm=T))
 names(df_property_prop) <- c("EVTYPE","PD")
 names(df_property_crop) <- c("EVTYPE","CD")
 df_property_prop <- arrange(df_property_prop,desc(PD))
@@ -89,6 +89,9 @@ df_property_combined <- arrange(df_property_combined,desc(TOTAL))
 tbl_fatalities <- tableGrob(head(df_people_fatalities, n = 10))
 tbl_injuries <- tableGrob(head(df_people_injuries, n = 10))
 tbl_combined <- tableGrob(head(df_people_combined, n = 10))
+tbl_prop <- tableGrob(head(df_property_prop, n = 10))
+tbl_crop <- tableGrob(head(df_property_crop, n = 10))
+tbl_prop_combined <- tableGrob(head(df_property_combined, n = 10))
 ```
 ####Create the plots for people impacts
 ```{r}
@@ -123,6 +126,39 @@ Cplot <-
         xlab="Event Type") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+####Create the plots for the property/crop impacts
+```{r}
+Pplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_property_prop, n =10), 
+        weight=PD, 
+        geom="bar", 
+        binwidth=20,
+        main="Property Damage",
+        ylab="Dollars of Property Damage",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+CPplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_property_crop, n =10), 
+        weight=CD, 
+        geom="bar", 
+        binwidth=20,
+        main="Crop Damage",
+        ylab="Dollars of Crop Damage",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+PCplot <- 
+    qplot(factor(EVTYPE,levels=unique(EVTYPE)),
+        data=head(df_property_combined, n =10), 
+        weight=TOTAL, 
+        geom="bar", 
+        binwidth=20,
+        main="Total Property & Crop Damage",
+        ylab="Dollars of Property & Crop Damage",
+        xlab="Event Type") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 ##Results
 ####Arrange all three tables and all three plots relating to people impacts to display in <strong>one</strong> figure
 ```{r fig.height = 20, fig.width = 15}
@@ -133,6 +169,18 @@ grid.arrange(tbl_fatalities,
              tbl_combined,
              Cplot,
              top = textGrob("Top 10 Weather Events With Impact to Health 1996 - 2011",gp=gpar(fontsize=20,font=3)),
+             ncol = 2,
+             nrow = 3)
+```
+####Arrange all three tables and all three plots relating to property/crop impacts to display in <strong>one</strong> figure
+```{r fig.height = 20, fig.width = 15}
+grid.arrange(tbl_prop,
+             Pplot,
+             tbl_crop,
+             CPplot,
+             tbl_prop_combined,
+             PCplot,
+             top = textGrob("Top 10 Weather Events With Impact to Property & Crop Damage 1996 - 2011",gp=gpar(fontsize=20,font=3)),
              ncol = 2,
              nrow = 3)
 ```
